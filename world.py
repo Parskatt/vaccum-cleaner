@@ -33,7 +33,9 @@ class World:
         rendition[self.state == clean] = (248 / 255, 200 / 255, 220 / 255)
         rendition[self.state == dirty] = (0.6, 0.6, 0.6)
         rendition[self.state == obstacle] = (137 / 255, 207 / 255, 240 / 255)
-        rendition[agent.pos[0], agent.pos[1]] = (0.5, 0.9, 0.5)
+        rendition[agent.pos[0], agent.pos[1]] = 0.3 * rendition[
+            agent.pos[0], agent.pos[1]
+        ] + 0.7 * np.array((0.5, 0.9, 0.5))
         return rendition
 
     def __str__(self):

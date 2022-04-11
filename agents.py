@@ -1,16 +1,18 @@
 from functools import partial
+import warnings
 import numpy as np
-from defs import left, right, up, down, clean, dirty, obstacle
+from defs import left, right, up, down, clean, dirty
+from utils import bisect_right
 import itertools
 
 
 class Agent:
-    def __init__(self, start_pos, H, W) -> None:
+    def __init__(self, start_pos, H, W, *args, **kwargs) -> None:
         self.pos = start_pos
         self.plan = []
         tmp = np.meshgrid(np.arange(W), np.arange(H))
         self.world_grid = np.stack((tmp[1], tmp[0]), axis=-1)
-
+        self.used_energy = 0
     def allowed_directions(self, pos, world):
         return [
             direction
@@ -25,7 +27,7 @@ class Agent:
     def _move(self, pos=None, world=None):
         if world.no_obstacle(pos):
             self.pos = pos
-
+            self.used_energy += 1
     def move_left(self, world):
         new_pos = self.pos + left
         self._move(new_pos, world)
@@ -44,6 +46,7 @@ class Agent:
 
     def suck(self, world):
         world[self.pos[0], self.pos[1]] = clean
+        self.used_energy += 1 # maybe dont use energy for suck?
 
     def act(self, world):
         if self.plan == []:
@@ -59,11 +62,20 @@ class StupidAgent(Agent):
         dirts = self.world_grid[world == 1]
         dirt_rel_pos = dirts - self.pos
         dirt_dists = np.abs(dirt_rel_pos).sum(axis=-1)
-        path_y, path_x = dirt_rel_pos[np.argmin(dirt_dists), :]
-        if path_y == 0 and path_x == 0:
+        goal = dirts[np.argmin(dirt_dists), :]
+        if (self.pos == goal).all():
             self.plan = [self.suck]
         else:
-            self.plan = self.path_to_actions(path_y, path_x)
+            rel_pos = goal - self.pos
+            path_y = [
+                self.pos + (down if rel_pos[0] > 0 else up)
+                for k in range(abs(rel_pos[0]))
+            ]
+            path_x = [
+                self.pos + (right if rel_pos[1] > 0 else left)
+                for k in range(abs(rel_pos[1]))
+            ]
+            self.plan = self.path_to_actions([self.pos] + path_x + path_y)
 
 
 class Djikstra1StepAgent(Agent):
@@ -177,7 +189,9 @@ class AStar1StepAgent(Agent):
             self.plan = self.path_to_actions(path)
 
 
-class TravelingSalesmanBFAgent(AStar1StepAgent):
+class AbstractTravelingSalesmanAgent(AStar1StepAgent):
+    def solve_ts(self, cost_matrix, path_matrix):
+        raise NotImplementedError
     def make_plan(self, world):
         dirts = self.world_grid[world == dirty]
         cost_matrix = np.zeros((len(dirts) + 1, len(dirts) + 1))
@@ -190,9 +204,16 @@ class TravelingSalesmanBFAgent(AStar1StepAgent):
                 path, cost = self.astar(i_dirt, j_dirt, world)
                 cost_matrix[j + 1, i + 1] = cost
                 path_matrix[j + 1, i + 1] = path
+        best_plan = self.solve_ts(cost_matrix, path_matrix)
+        self.plan = best_plan
+
+class TravelingSalesmanBFAgent(AbstractTravelingSalesmanAgent):
+    def solve_ts(self, cost_matrix, path_matrix):
+        if len(cost_matrix) > 7:
+            warnings.warn("Running the brute force method on the TSP is very slow for problems > 7, please reconsider :(")
         perms = [
-            list(t) for t in list(itertools.permutations(range(1, len(dirts) + 1)))
-        ]  # yes im stupid
+            list(t) for t in list(itertools.permutations(range(1, len(cost_matrix))))
+        ]  # yes, this is not a good idea
         p_costs, p_plans = [], []
         for perm in perms:
             perm.insert(0, 0)
@@ -206,29 +227,23 @@ class TravelingSalesmanBFAgent(AStar1StepAgent):
             best_plan += self.path_to_actions(path_matrix[destination, departure]) + [
                 self.suck
             ]
-        self.plan = best_plan
+        return best_plan
 
-
-def bisect_right(a, x, lo=0, hi=None):
-    """Return the index where to insert item x in list a, assuming a is sorted.
-
-    The return value i is such that all e in a[:i] have e <= x, and all e in
-    a[i:] have e > x.  So if x already appears in the list, a.insert(x) will
-    insert just after the rightmost x already there.
-
-    Optional args lo (default 0) and hi (default len(a)) bound the
-    slice of a to be searched.
-    """
-
-    if lo < 0:
-        raise ValueError("lo must be non-negative")
-    if hi is None:
-        hi = len(a)
-    while lo < hi:
-        mid = (lo + hi) // 2
-        # Use __lt__ to match the logic in list.sort() and in heapq
-        if x[-1] < a[mid][-1]:
-            hi = mid
-        else:
-            lo = mid + 1
-    return lo
+class TravelingSalesmanRandPermAgent(AbstractTravelingSalesmanAgent):
+    def solve_ts(self, cost_matrix, path_matrix):
+        inds = range(1, len(cost_matrix))
+        perms = [np.random.choice(inds) for _  in min(len(cost_matrix), 7*6*5*4*3*2*1)] 
+        p_costs, p_plans = [], []
+        for perm in perms:
+            perm.insert(0, 0)
+            p_cost = 0
+            for departure, destination in zip(perm[:-1], perm[1:]):
+                p_cost += cost_matrix[destination, departure]
+            p_costs.append(p_cost)
+        best_perm = min(zip(perms, p_costs), key=lambda x: x[-1])[0]
+        best_plan = []
+        for departure, destination in zip(best_perm[:-1], best_perm[1:]):
+            best_plan += self.path_to_actions(path_matrix[destination, departure]) + [
+                self.suck
+            ]
+        return best_plan
