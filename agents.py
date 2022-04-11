@@ -96,6 +96,9 @@ class Djikstra1StepAgent(Agent):
 
 
 class AStar1StepAgent(Agent):
+    def __init__(self, start_pos, H, W, time_horizon=1000) -> None:
+        super().__init__(start_pos, H, W)
+        self.time_horizon = time_horizon
     def path_from_costs(self, costs, start, goal, world):
         reverse_path = [goal]
         while True:
@@ -113,21 +116,34 @@ class AStar1StepAgent(Agent):
         h_0 = np.abs(goal-start).sum()
         nodes = [(start, 0, 0 + h_0)]
         costs[start[0], start[1]] = 0
+        horizon_nodes = []
+        at_horizon = False
         while True:
             p, c, _ = nodes.pop(0)
+                
             if (p == goal).all():
                 break
             new_positions = p+self.allowed_directions(p, world)
             new_costs = c+1
+            if new_costs > self.time_horizon:
+                horizon_nodes.append((p, c, _))
+                if nodes:
+                    continue
+                else:
+                    at_horizon = True
+                    break
             for new_pos in new_positions:
                 if new_costs < costs[new_pos[0],new_pos[1]]:
                     h = np.abs(goal-new_pos).sum()#could precompute this
                     n = (new_pos, new_costs, new_costs + h)
                     nodes.insert(bisect_right(nodes,n),n)
                     costs[new_pos[0], new_pos[1]] = new_costs
-        #print(costs)
-        #print(costs[goal[0],goal[1]])
-        return self.path_from_costs(costs, start, goal, world), costs[goal[0],goal[1]]
+        if at_horizon:
+            best_node = min(horizon_nodes, key=lambda x:x[-1])
+            best_node_pos = best_node[0]
+            return self.path_from_costs(costs, start, best_node_pos, world), costs[best_node_pos[0],best_node_pos[1]]
+        else:
+            return self.path_from_costs(costs, start, goal, world), costs[goal[0],goal[1]]
 
     def make_plan(self, world):
         dirts = self.world_grid[world==dirty]
