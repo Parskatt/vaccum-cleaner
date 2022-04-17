@@ -1,5 +1,5 @@
 import numpy as np
-from defs import clean, dirty, obstacle
+from .defs import clean, dirty, obstacle
 
 
 class World:

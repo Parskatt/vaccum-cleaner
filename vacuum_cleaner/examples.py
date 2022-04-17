@@ -52,3 +52,11 @@ def trap_world():
     world_state[obst[:, 0], obst[:, 1]] = 2
     start_pos = np.array([0, 0])
     return world_state, start_pos, H, W
+
+def random_world():
+    H, W = 20, 30
+    world_state = np.zeros((H, W), dtype=np.int32)
+    world_state[np.random.rand(H,W) < 0.05] = 2
+    world_state[np.random.rand(H,W) < 0.05] = 1
+    start_pos = np.array([0, 0])
+    return world_state, start_pos, H, W

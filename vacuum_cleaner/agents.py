@@ -1,8 +1,8 @@
 from functools import partial
 import warnings
 import numpy as np
-from defs import left, right, up, down, clean, dirty
-from utils import bisect_right
+from .defs import left, right, up, down, clean, dirty
+from .utils import bisect_right
 import itertools
 
 
@@ -56,6 +56,8 @@ class Agent:
     def make_plan(self, world):
         raise NotImplementedError
 
+    def __str__(self) -> str:
+        return str(self.__class__.__name__)
 
 class StupidAgent(Agent):
     def make_plan(self, world):
@@ -222,6 +224,7 @@ class TravelingSalesmanBFAgent(AbstractTravelingSalesmanAgent):
                 p_cost += cost_matrix[destination, departure]
             p_costs.append(p_cost)
         best_perm = min(zip(perms, p_costs), key=lambda x: x[-1])[0]
+        print(best_perm)
         best_plan = []
         for departure, destination in zip(best_perm[:-1], best_perm[1:]):
             best_plan += self.path_to_actions(path_matrix[destination, departure]) + [
@@ -243,6 +246,36 @@ class TravelingSalesmanRandPermAgent(AbstractTravelingSalesmanAgent):
         best_perm = min(zip(perms, p_costs), key=lambda x: x[-1])[0]
         best_plan = []
         for departure, destination in zip(best_perm[:-1], best_perm[1:]):
+            best_plan += self.path_to_actions(path_matrix[destination, departure]) + [
+                self.suck
+            ]
+        return best_plan
+
+
+class TravelingSalesmanMCTSAgent(AbstractTravelingSalesmanAgent):
+    def __init__(self, start_pos, H, W, time_horizon=1000, num_sim = 1000) -> None:
+        super().__init__(start_pos, H, W, time_horizon)
+        self.num_sim = num_sim
+    def solve_ts(self, cost_matrix, path_matrix):
+        P = np.exp(-cost_matrix)#
+        best_cost, best_order = 100000, []
+        for _ in range(self.num_sim):
+            order = [0]
+            order_cost = 0
+            remaining = [i for i in range(1,len(cost_matrix))]
+            for _ in range(len(cost_matrix)-1):
+                departure = order[-1]
+                p = P[remaining, departure]
+                p /= p.sum()
+                destination = np.random.choice(remaining ,p=p)
+                order_cost += cost_matrix[destination, departure]
+                remaining.remove(destination)
+                order.append(destination)
+            if order_cost < best_cost:
+                best_order = order
+                best_cost = order_cost
+        best_plan = []
+        for departure, destination in zip(best_order[:-1], best_order [1:]):
             best_plan += self.path_to_actions(path_matrix[destination, departure]) + [
                 self.suck
             ]
