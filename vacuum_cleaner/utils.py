@@ -1,4 +1,3 @@
-
 def bisect_right(a, x, lo=0, hi=None):
     """Return the index where to insert item x in list a, assuming a is sorted.
 

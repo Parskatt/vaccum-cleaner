@@ -7,15 +7,26 @@ from vacuum_cleaner.agents import (
     TravelingSalesmanBFAgent,
     TravelingSalesmanMCTSAgent,
 )
-from vacuum_cleaner.examples import random_world, simple_world, difficult_world, trap_world
+from vacuum_cleaner.examples import (
+    random_world,
+    simple_world,
+    difficult_world,
+    trap_world,
+)
 from vacuum_cleaner.world import World
 import cv2
 
 world_strings = ["simple", "difficult", "trap", "random"]
 worlds = [simple_world, difficult_world, trap_world, random_world]
 world_parser = {w_s: w for w_s, w in zip(world_strings, worlds)}
-agent_strings = ["stupid", "djikstra", "a*", "ts-a*","ts-mcts-a*"]
-agents = [StupidAgent, Djikstra1StepAgent, AStar1StepAgent, TravelingSalesmanBFAgent, TravelingSalesmanMCTSAgent]
+agent_strings = ["stupid", "djikstra", "a*", "ts-a*", "ts-mcts-a*"]
+agents = [
+    StupidAgent,
+    Djikstra1StepAgent,
+    AStar1StepAgent,
+    TravelingSalesmanBFAgent,
+    TravelingSalesmanMCTSAgent,
+]
 agent_parser = {a_s: a for a_s, a in zip(agent_strings, agents)}
 
 
@@ -33,7 +44,9 @@ def render(
     bgr_rendition = np.stack(
         (rendition[..., 2], rendition[..., 1], rendition[..., 0]), axis=-1
     )
-    cv2.imshow("world", cv2.resize(bgr_rendition, (W, H), interpolation=cv2.INTER_NEAREST))
+    cv2.imshow(
+        "world", cv2.resize(bgr_rendition, (W, H), interpolation=cv2.INTER_NEAREST)
+    )
     cv2.waitKey(render_time)
 
 
@@ -66,7 +79,12 @@ if __name__ == "__main__":
         default=1000,
         help="Time horizon of agent planning, only applicable to A* agent. Default 1000.",
     )
-    parser.add_argument("--dont_render", action='store_true', default=False, help="Whether to render the world graphically.")
+    parser.add_argument(
+        "--dont_render",
+        action="store_true",
+        default=False,
+        help="Whether to render the world graphically.",
+    )
     parser.add_argument(
         "--render_time",
         type=int,

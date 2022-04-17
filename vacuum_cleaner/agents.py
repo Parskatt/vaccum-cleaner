@@ -13,6 +13,7 @@ class Agent:
         tmp = np.meshgrid(np.arange(W), np.arange(H))
         self.world_grid = np.stack((tmp[1], tmp[0]), axis=-1)
         self.used_energy = 0
+
     def allowed_directions(self, pos, world):
         return [
             direction
@@ -28,6 +29,7 @@ class Agent:
         if world.no_obstacle(pos):
             self.pos = pos
             self.used_energy += 1
+
     def move_left(self, world):
         new_pos = self.pos + left
         self._move(new_pos, world)
@@ -46,7 +48,7 @@ class Agent:
 
     def suck(self, world):
         world[self.pos[0], self.pos[1]] = clean
-        self.used_energy += 1 # maybe dont use energy for suck?
+        self.used_energy += 1  # maybe dont use energy for suck?
 
     def act(self, world):
         if self.plan == []:
@@ -58,6 +60,7 @@ class Agent:
 
     def __str__(self) -> str:
         return str(self.__class__.__name__)
+
 
 class StupidAgent(Agent):
     def make_plan(self, world):
@@ -194,6 +197,7 @@ class AStar1StepAgent(Agent):
 class AbstractTravelingSalesmanAgent(AStar1StepAgent):
     def solve_ts(self, cost_matrix, path_matrix):
         raise NotImplementedError
+
     def make_plan(self, world):
         dirts = self.world_grid[world == dirty]
         cost_matrix = np.zeros((len(dirts) + 1, len(dirts) + 1))
@@ -209,10 +213,13 @@ class AbstractTravelingSalesmanAgent(AStar1StepAgent):
         best_plan = self.solve_ts(cost_matrix, path_matrix)
         self.plan = best_plan
 
+
 class TravelingSalesmanBFAgent(AbstractTravelingSalesmanAgent):
     def solve_ts(self, cost_matrix, path_matrix):
         if len(cost_matrix) > 7:
-            warnings.warn("Running the brute force method on the TSP is very slow for problems > 7, please reconsider :(")
+            warnings.warn(
+                "Running the brute force method on the TSP is very slow for problems > 7, please reconsider :("
+            )
         perms = [
             list(t) for t in list(itertools.permutations(range(1, len(cost_matrix))))
         ]  # yes, this is not a good idea
@@ -232,10 +239,14 @@ class TravelingSalesmanBFAgent(AbstractTravelingSalesmanAgent):
             ]
         return best_plan
 
+
 class TravelingSalesmanRandPermAgent(AbstractTravelingSalesmanAgent):
     def solve_ts(self, cost_matrix, path_matrix):
         inds = range(1, len(cost_matrix))
-        perms = [np.random.choice(inds) for _  in min(len(cost_matrix), 7*6*5*4*3*2*1)] 
+        perms = [
+            np.random.choice(inds)
+            for _ in min(len(cost_matrix), 7 * 6 * 5 * 4 * 3 * 2 * 1)
+        ]
         p_costs, p_plans = [], []
         for perm in perms:
             perm.insert(0, 0)
@@ -253,21 +264,22 @@ class TravelingSalesmanRandPermAgent(AbstractTravelingSalesmanAgent):
 
 
 class TravelingSalesmanMCTSAgent(AbstractTravelingSalesmanAgent):
-    def __init__(self, start_pos, H, W, time_horizon=1000, num_sim = 1000) -> None:
+    def __init__(self, start_pos, H, W, time_horizon=1000, num_sim=1000) -> None:
         super().__init__(start_pos, H, W, time_horizon)
         self.num_sim = num_sim
+
     def solve_ts(self, cost_matrix, path_matrix):
-        P = np.exp(-cost_matrix)#
+        P = np.exp(-cost_matrix)  #
         best_cost, best_order = 100000, []
         for _ in range(self.num_sim):
             order = [0]
             order_cost = 0
-            remaining = [i for i in range(1,len(cost_matrix))]
-            for _ in range(len(cost_matrix)-1):
+            remaining = [i for i in range(1, len(cost_matrix))]
+            for _ in range(len(cost_matrix) - 1):
                 departure = order[-1]
                 p = P[remaining, departure]
                 p /= p.sum()
-                destination = np.random.choice(remaining ,p=p)
+                destination = np.random.choice(remaining, p=p)
                 order_cost += cost_matrix[destination, departure]
                 remaining.remove(destination)
                 order.append(destination)
@@ -275,7 +287,7 @@ class TravelingSalesmanMCTSAgent(AbstractTravelingSalesmanAgent):
                 best_order = order
                 best_cost = order_cost
         best_plan = []
-        for departure, destination in zip(best_order[:-1], best_order [1:]):
+        for departure, destination in zip(best_order[:-1], best_order[1:]):
             best_plan += self.path_to_actions(path_matrix[destination, departure]) + [
                 self.suck
             ]
