@@ -45,7 +45,7 @@ def render(
         (rendition[..., 2], rendition[..., 1], rendition[..., 0]), axis=-1
     )
     cv2.imshow(
-        "world", cv2.resize(bgr_rendition, (W, H), interpolation=cv2.INTER_NEAREST)
+        "Vacuum Cleaning Game", cv2.resize(bgr_rendition, (W, H), interpolation=cv2.INTER_NEAREST)
     )
     cv2.waitKey(render_time)
 

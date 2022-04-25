@@ -1,5 +1,5 @@
 # Vacuum Cleaner Planner
-
+By Johan Edstedt
 ## Install
 ``pip3 install -e .``
 
